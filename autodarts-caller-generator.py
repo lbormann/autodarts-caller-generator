@@ -5,6 +5,7 @@ import argparse
 import glob
 import shutil
 import csv
+import re
 import codecs
 import logging
 from google.cloud import texttospeech
@@ -21,7 +22,6 @@ logger=logging.getLogger()
 logger.handlers.clear()
 logger.setLevel(logging.INFO)
 logger.addHandler(sh)
-
 
 
 VERSION = '1.0.0'
@@ -85,8 +85,6 @@ def binary_dialog(question, default = 'no'):
             return False
         else:
             print("Invalid input. Please respond with 'yes' or 'no'.")
-def get_files(pattern):
-    return glob.glob(pattern)
 def display_menu(text, options):
     if not options:
         raise ValueError("No options provided.")
@@ -106,10 +104,19 @@ def display_menu(text, options):
     return options[selection - 1]
 
 def list_template_files():
-    return get_files(f'*-*-v*{TEMPLATE_FILE_EXTENSION}')
+    path = os.path.join(TEMPLATES_PATH, f'*-*-v*{TEMPLATE_FILE_EXTENSION}')
+    # path = "\\\\192.168.0.121\\projects\\autodarts-caller\\*-*-v*.csv"
+    if path.startswith('\\'): 
+        path = f"\{path}"
+    return glob.glob(path)
 def choose_template_file():
     template_files = list_template_files()
     return display_menu("Select a template file to use: ", template_files)
+def extract_language_code(template_file_path):
+    match = re.search(r'([a-z]{2}-[A-Z]{2})-v\d+(-raw)?\.csv$', template_file_path)
+    if match:
+        return match.group(1)
+    return None
 
 def choose_generation_path():
     while True:
@@ -210,6 +217,9 @@ def restructure_generated_files(generation_path):
 
 def generate(provider, template_file, language_code, voice_name, raw_mode):
     generation_path = GENERATION_PATH
+    if raw_mode:
+        generation_path = GENERATION_RAW_PATH
+
     voice_name_path = voice_name
     if not voice_name.lower().startswith(language_code.lower()):
         voice_name_path = language_code + '-' + voice_name
@@ -224,7 +234,7 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
     generation_path = generation_path_main
     if not raw_mode:
         # add template-file to generation-path
-        shutil.copy(template_file, generation_path_main)
+        template_file = shutil.copy(template_file, generation_path_main)
 
         generation_path = os.path.join(generation_path_main, voice_name_path)
         os.makedirs(generation_path, exist_ok=True)
@@ -243,8 +253,6 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
     elif provider == 'google':
         errors = generate_google(keys, generation_path, language_code, voice_name, raw_mode)
 
-    print(f"Generation finished with {errors} errors")
-
     if not raw_mode:
         # Erstellen Sie die ZIP-Datei
         # Der Name des zu erstellenden Archivs (ohne .zip Erweiterung)
@@ -260,6 +268,8 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
         shutil.rmtree(generation_path)
 
         restructure_generated_files(generation_path_main)
+
+    print(f"Generation finished with {errors} errors")
 def generate_amazon(keys, generation_path, language_code, language_name, raw_mode):
     # Create a client using the credentials and region defined in the [default] section of the AWS credentials file (~/.aws/credentials).
     # profile_name="autodart-caller"
@@ -399,7 +409,7 @@ if __name__ == "__main__":
 
     # 1)
     template_file = choose_template_file() 
-    language_code = template_file.split("-v")[0]
+    language_code = extract_language_code(template_file)
 
     # 2) 
     raw_mode = binary_dialog("Do you want to generate in raw mode (Default: no)?: ")
