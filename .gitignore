@@ -1,5 +1,4 @@
-
-*.txt
+*prompt.txt
 *.json
 *-custom.sh
 *-custom.bat

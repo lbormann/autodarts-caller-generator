@@ -1,21 +1,36 @@
 import os
+from pathlib import Path
 import platform
+import argparse
 import glob
 import shutil
 import csv
 import codecs
+import logging
 from google.cloud import texttospeech
 from boto3 import Session
 from contextlib import closing
 
 plat = platform.system()
 
+sh = logging.StreamHandler()
+sh.setLevel(logging.INFO)
+formatter = logging.Formatter('%(message)s')
+sh.setFormatter(formatter)
+logger=logging.getLogger()
+logger.handlers.clear()
+logger.setLevel(logging.INFO)
+logger.addHandler(sh)
 
 
 
-SERVICE_PROVIDERS = ['google', 'amazon']
+VERSION = '1.0.0'
+
+
 TEMPLATE_FILE_EXTENSION = '.csv'
+TEMPLATE_FILE_ENCODING = 'utf-8-sig'
 OUTPUT_FILE_EXTENSION = '.mp3'
+SERVICE_PROVIDERS = ['google', 'amazon']
 
 
 
@@ -158,7 +173,7 @@ def choose_voice_name(provider, voices):
 
 def read_generation_keys(template_file):
     keys = []
-    with codecs.open(template_file, 'r', encoding='utf-8-sig') as csvfile:
+    with codecs.open(template_file, 'r', encoding=TEMPLATE_FILE_ENCODING) as csvfile:
         csv_reader = csv.reader(csvfile, delimiter=';')
         for row in csv_reader:
             keys.append(row[0])
@@ -193,7 +208,8 @@ def restructure_generated_files(generation_path):
     # Löscht den Ursprungsordner
     shutil.rmtree(generation_path)
 
-def generate(provider, template_file, generation_path, language_code, voice_name, raw_mode):
+def generate(provider, template_file, language_code, voice_name, raw_mode):
+    generation_path = GENERATION_PATH
     voice_name_path = voice_name
     if not voice_name.lower().startswith(language_code.lower()):
         voice_name_path = language_code + '-' + voice_name
@@ -345,49 +361,61 @@ def generate_google(keys, generation_path, language_code, language_name, raw_mod
 
 if __name__ == "__main__":
 
+    ap = argparse.ArgumentParser()
+    
+    ap.add_argument("-TP", "--templates_path", required=True, help="Absolute path to your templates")
+    ap.add_argument("-GP", "--generation_path", required=True, help="Absolute path to your generation path")
+    ap.add_argument("-GRP", "--generation_raw_path", required=True, help="Absolute path to your generation-raw path")
+    ap.add_argument("-DEB", "--debug", type=int, choices=range(0, 2), default=False, required=False, help="If '1', the application will output additional information")
+    args = vars(ap.parse_args())
+
+    TEMPLATES_PATH = Path(args['templates_path'])
+    GENERATION_PATH = Path(args['generation_path'])
+    GENERATION_RAW_PATH = Path(args['generation_raw_path'])
+    DEBUG = args['debug']
+
     osType = plat
     osName = os.name
     osRelease = platform.release()
     print('\r\n', '')
     print('##########################################', '')
-    print('       WELCOME TO CLOUD-TTS-GENERATOR', '')
+    print('       WELCOME TO AUTODARTS-CALLER-GENERATOR', '')
     print('##########################################', '')
     print('RUNNING OS: ' + osType + ' | ' + osName + ' | ' + osRelease, '')
     print('\r\n', '')
 
-    # Ablauf:
-    # 0) Welchen Cloud-provider möchten Sie benutzen?
-    # 1) Mit welchem Template möchten Sie arbeiten?
-    # 2) Wo sollen die generierten Sounds gespeichert werden?
-    # 3) Soll im 'raw'-Modus generiert werden? (Sollen die Sounds für den Caller strukturiert werden?)
-    # 4) Welche Stimme möchten Sie nutzen? -> Anzeige gültiger Stimmen für die ausgewählte Sprache (Die Sprache wird aus dem template-namen interpretiert)
-    # 5) Bestätigen Sie und starten Sie die Generierung
-    # 6) Wiederholung ab 4)
+
+    # Procedure:
+    # 0) Which cloud provider would you like to use?
+    # 1) Which template would you like to work with?
+    # 2) Should it be generated in 'raw' mode? (Should the sounds for the caller be structured?)
+    # 3) Which voice would you like to use? -> Display of availble voices for the selected language (The language is interpreted from the template name)
+    # 4) Confirm and start the generation
+    # 5) Repeat from step 3)
+
 
     # 0)
     provider = setup_environment()
 
     # 1)
     template_file = choose_template_file() 
-    language_code = template_file.split("-v")[0]   
+    language_code = template_file.split("-v")[0]
 
-    # 2)
-    generation_path = choose_generation_path()
-
-    # 3) 
+    # 2) 
     raw_mode = binary_dialog("Do you want to generate in raw mode (Default: no)?: ")
 
-    # 4) 
+    # 3) 
     voices = list_voice_names(provider, language_code)
 
-    # 6)
+    # 5)
     while 1:
+        # 3)
         voice_name = choose_voice_name(provider, voices)
 
-        # 5)
+        # 4)
         confirm = binary_dialog(f"Are you sure you want to proceed (yes/no)? You may face some bill by {provider} (Default: no): ")
         if confirm:
-            generate(provider, template_file, generation_path, language_code, voice_name, raw_mode)
+            generate(provider, template_file, language_code, voice_name, raw_mode)
 
                 
 

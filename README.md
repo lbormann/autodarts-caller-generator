@@ -2,7 +2,7 @@
 [![Downloads](https://img.shields.io/github/downloads/lbormann/autodarts-caller-generator/total.svg)](https://github.com/lbormann/autodarts-caller-generator/releases/latest)
 
 
-
+Synthesizes speech from input strings of template-files with multiple cloud-providers to generate voice-packs that can be used by https://github.com/lbormann/autodarts-caller
 
 
 ## INSTALL INSTRUCTION
@@ -35,7 +35,7 @@ Go to download-directory and type:
 
 ## SETUP
 
-autodarts-caller-generator uses service providers like google and amazon (aws) to generate sound-file-packages. In order to use these providers you need to setup credentials.
+autodarts-caller-generator uses service providers like google and amazon (aws) to generate voice-packs. In order to properly connect to providers you need to setup credentials.
 
 
 
