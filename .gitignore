@@ -1,0 +1,5 @@
+
+*.txt
+*.json
+*-custom.sh
+*-custom.bat
