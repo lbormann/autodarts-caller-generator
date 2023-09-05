@@ -40,19 +40,19 @@ jobs:
         include:
           - os: macos-latest
             TARGET: macos
-            CMD_BUILD: pyinstaller -F -n autodarts-caller-generator-mac -i resources/autodarts-caller-generator.icns --add-data "templates:templates" autodarts-caller-generator.py 
+            CMD_BUILD: pyinstaller -F -n autodarts-caller-generator-mac -i resources/autodarts-caller-generator.icns autodarts-caller-generator.py 
             OUT_FILE_NAME: autodarts-caller-generator-mac
             ASSET_MIME: application/zip
 
           - os: ubuntu-20.04
             TARGET: ubuntu
-            CMD_BUILD: pyinstaller -F -n autodarts-caller-generator -i resources/autodarts-caller-generator.svg --add-data "templates:templates" autodarts-caller-generator.py
+            CMD_BUILD: pyinstaller -F -n autodarts-caller-generator -i resources/autodarts-caller-generator.svg autodarts-caller-generator.py
             OUT_FILE_NAME: autodarts-caller-generator
             ASSET_MIME: application/octet-stream
 
           - os: windows-latest
             TARGET: windows
-            CMD_BUILD: pyinstaller -F -n autodarts-caller-generator -i resources/autodarts-caller-generator.ico --add-data "templates;templates" autodarts-caller-generator.py
+            CMD_BUILD: pyinstaller -F -n autodarts-caller-generator -i resources/autodarts-caller-generator.ico autodarts-caller-generator.py
             OUT_FILE_NAME: autodarts-caller-generator.exe
             ASSET_MIME: application/vnd.microsoft.portable-executable
     steps:
