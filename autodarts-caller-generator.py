@@ -24,12 +24,13 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 
 
 TEMPLATE_FILE_EXTENSION = '.csv'
 TEMPLATE_FILE_ENCODING = 'utf-8-sig'
 OUTPUT_FILE_EXTENSION = '.mp3'
+OUTPUT_ARCHIVE_EXTENSION = 'zip'
 SERVICE_PROVIDERS = ['google', 'amazon']
 
 
@@ -204,7 +205,7 @@ def restructure_generated_files(generation_path):
         shutil.move(os.path.join(generation_path, item), temp_dir)
 
     # Erstellen Sie das ZIP-Archiv aus dem temporären Ordner
-    shutil.make_archive(os.path.join(archive_dir, archive_name), 'zip', temp_dir)
+    shutil.make_archive(os.path.join(archive_dir, archive_name), OUTPUT_ARCHIVE_EXTENSION, temp_dir)
 
     # Verschieben Sie alle Dateien und Ordner zurück in den ursprünglichen Ordner
     for item in os.listdir(temp_dir):
@@ -220,13 +221,25 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
     if raw_mode:
         generation_path = GENERATION_RAW_PATH
 
+    os.makedirs(generation_path, exist_ok=True)
+    if os.access(generation_path, os.W_OK) == False:
+        raise FileNotFoundError(f"{generation_path} is not writeable")
+
     voice_name_path = voice_name
     if not voice_name.lower().startswith(language_code.lower()):
         voice_name_path = language_code + '-' + voice_name
 
     generation_path_main = os.path.join(generation_path, voice_name_path)
 
-    # Make sure the directory exists
+    version_counter = 1
+    if os.path.exists(f"{generation_path_main}.{OUTPUT_ARCHIVE_EXTENSION}"):     
+        while 1: 
+            version_counter += 1
+            version = f"{generation_path_main}-v{version_counter}.{OUTPUT_ARCHIVE_EXTENSION}"
+            if not os.path.exists(version):
+                generation_path_main = f"{generation_path_main}-v{version_counter}"
+                break
+            
     os.makedirs(generation_path_main, exist_ok=True)
     if os.access(generation_path_main, os.W_OK) == False:
         raise FileNotFoundError(f"{generation_path_main} is not writeable")
@@ -237,6 +250,8 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
         template_file = shutil.copy(template_file, generation_path_main)
 
         generation_path = os.path.join(generation_path_main, voice_name_path)
+        if version_counter > 1:
+            generation_path = f"{generation_path}-v{version_counter}"
         os.makedirs(generation_path, exist_ok=True)
         if os.access(generation_path, os.W_OK) == False:
             raise FileNotFoundError(f"{generation_path} is not writeable")
@@ -262,7 +277,7 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
         archive_dir = os.path.dirname(generation_path)
 
         # Erstellen Sie die ZIP-Datei
-        shutil.make_archive(os.path.join(archive_dir, archive_name), 'zip', archive_dir, archive_name)
+        shutil.make_archive(os.path.join(archive_dir, archive_name), OUTPUT_ARCHIVE_EXTENSION, archive_dir, archive_name)
 
         # Löscht den Ursprungsordner
         shutil.rmtree(generation_path)
