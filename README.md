@@ -83,6 +83,7 @@ Start the script:
 - -TP / --templates_path
 - -GP / --generation_path
 - -GPR / --generation_path_raw
+- -MR / --max_retries
 
 
 *`-TP / --templates_path`*
@@ -97,6 +98,10 @@ You need to set an absolute path to your generation-directory. Moreover make sur
 
 You need to set an absolute path to your generation-raw-directory. Moreover make sure the given path doesn't reside inside main-directory (autodarts-name-grabber).
 
+*`-MR / --max_retries`*
+
+Defines maximum count of retries for an entry.
+
 
 
 
@@ -110,7 +115,7 @@ It may be buggy. I've just coded it for fast fun with https://autodarts.io. You 
 ### Done
 
 - Init project
-
+- Add retry for generation
 
 
 ## LAST WORDS

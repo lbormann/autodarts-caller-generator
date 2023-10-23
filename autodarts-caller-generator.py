@@ -24,14 +24,16 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.0.1'
+VERSION = '1.0.2'
 
+DEFAULT_MAX_RETRIES = 3
 
 TEMPLATE_FILE_EXTENSION = '.csv'
 TEMPLATE_FILE_ENCODING = 'utf-8-sig'
 OUTPUT_FILE_EXTENSION = '.mp3'
 OUTPUT_ARCHIVE_EXTENSION = 'zip'
 SERVICE_PROVIDERS = ['google', 'amazon']
+
 
 
 
@@ -296,34 +298,40 @@ def generate_amazon(keys, generation_path, language_code, language_name, raw_mod
     for key_index, key in enumerate(keys):
         print(f"{key_index}) {key}")
 
-        try:
-            response = client.synthesize_speech(
-                Text=key, 
-                OutputFormat="mp3", 
-                VoiceId=language_name,
-                Engine='neural',
-                SampleRate='24000'
-                )
+        tries = 1
+        success = False
+        while not success and tries <= MAX_RETRIES:
+            tries += 1
+            try:     
+                response = client.synthesize_speech(
+                    Text=key, 
+                    OutputFormat="mp3", 
+                    VoiceId=language_name,
+                    Engine='neural',
+                    SampleRate='24000'
+                    )
 
-            # Access the audio stream from the response
-            if "AudioStream" in response:
-                    # Note: Closing the stream is important because the service throttles on the
-                    # number of parallel connections. Here we are using contextlib.closing to
-                    # ensure the close method of the stream object will be called automatically
-                    # at the end of the with statement's scope.
-                    with closing(response["AudioStream"]) as stream:
-                        file_output = f"{key}{OUTPUT_FILE_EXTENSION}"
-                        if not raw_mode:
-                            # BL-00001_0_48k_stereo.mp3
-                            file_output = f"AM-{str(key_index).zfill(5)}_{key_index}_mono{OUTPUT_FILE_EXTENSION}"
+                # Access the audio stream from the response
+                if "AudioStream" in response:
+                        # Note: Closing the stream is important because the service throttles on the
+                        # number of parallel connections. Here we are using contextlib.closing to
+                        # ensure the close method of the stream object will be called automatically
+                        # at the end of the with statement's scope.
+                        with closing(response["AudioStream"]) as stream:
+                            file_output = f"{key}{OUTPUT_FILE_EXTENSION}"
+                            if not raw_mode:
+                                # BL-00001_0_48k_stereo.mp3
+                                file_output = f"AM-{str(key_index).zfill(5)}_{key_index}_mono{OUTPUT_FILE_EXTENSION}"
 
-                        output_file_path = os.path.join(generation_path, file_output)
+                            output_file_path = os.path.join(generation_path, file_output)
 
-                        with open(output_file_path, "wb") as file:
-                            file.write(stream.read())    
-        except Exception as e:
-            errors += 1
-            print(str(e))
+                            with open(output_file_path, "wb") as file:
+                                file.write(stream.read())   
+                            success = True 
+            except Exception as e:
+                print(str(e))
+                if tries > MAX_RETRIES:
+                    errors += 1            
     return errors   
 def generate_google(keys, generation_path, language_code, language_name, raw_mode):
     # Instantiates a client
@@ -351,32 +359,38 @@ def generate_google(keys, generation_path, language_code, language_name, raw_mod
     for key_index, key in enumerate(keys):
         print(f"{key_index}) {key}")
 
-        try:
-            # Set the text input to be synthesized
-            synthesis_input = texttospeech.SynthesisInput(text=key)
+        tries = 1
+        success = False
+        while not success and tries <= MAX_RETRIES:
+            tries += 1
+            try:
+                # Set the text input to be synthesized
+                synthesis_input = texttospeech.SynthesisInput(text=key)
 
-            # Perform the text-to-speech request on the text input with the selected
-            # voice parameters and audio file type
-            response = client.synthesize_speech(
-                input=synthesis_input, 
-                voice=voice, 
-                audio_config=audio_config
-            )
+                # Perform the text-to-speech request on the text input with the selected
+                # voice parameters and audio file type
+                response = client.synthesize_speech(
+                    input=synthesis_input, 
+                    voice=voice, 
+                    audio_config=audio_config
+                )
 
-            file_output = f"{key}{OUTPUT_FILE_EXTENSION}"
-            if not raw_mode:
-                # BL-00001_0_48k_stereo.mp3
-                file_output = f"GO-{str(key_index).zfill(5)}_{key_index}_mono{OUTPUT_FILE_EXTENSION}"
+                file_output = f"{key}{OUTPUT_FILE_EXTENSION}"
+                if not raw_mode:
+                    # BL-00001_0_48k_stereo.mp3
+                    file_output = f"GO-{str(key_index).zfill(5)}_{key_index}_mono{OUTPUT_FILE_EXTENSION}"
 
-            output_file_path = os.path.join(generation_path, file_output)
+                output_file_path = os.path.join(generation_path, file_output)
 
-            # The response's audio_content is binary.
-            with open(output_file_path, "wb") as out:
-                # Write the response to the output file.
-                out.write(response.audio_content)
-        except Exception as e:
-            errors += 1
-            print(str(e))
+                # The response's audio_content is binary.
+                with open(output_file_path, "wb") as out:
+                    # Write the response to the output file.
+                    out.write(response.audio_content)
+                success = True
+            except Exception as e:
+                print(str(e))
+                if tries > MAX_RETRIES:
+                    errors += 1    
     return errors
 
 
@@ -391,12 +405,14 @@ if __name__ == "__main__":
     ap.add_argument("-TP", "--templates_path", required=True, help="Absolute path to your templates")
     ap.add_argument("-GP", "--generation_path", required=True, help="Absolute path to your generation path")
     ap.add_argument("-GRP", "--generation_raw_path", required=True, help="Absolute path to your generation-raw path")
+    ap.add_argument("-MR", "--max_retries", type=int, default=DEFAULT_MAX_RETRIES, required=False, help="Maximum retry-count for an entry")
     ap.add_argument("-DEB", "--debug", type=int, choices=range(0, 2), default=False, required=False, help="If '1', the application will output additional information")
     args = vars(ap.parse_args())
 
     TEMPLATES_PATH = Path(args['templates_path'])
     GENERATION_PATH = Path(args['generation_path'])
     GENERATION_RAW_PATH = Path(args['generation_raw_path'])
+    MAX_RETRIES = args['max_retries']
     DEBUG = args['debug']
 
     osType = plat
