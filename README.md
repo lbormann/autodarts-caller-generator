@@ -104,20 +104,6 @@ Defines maximum count of retries for an entry.
 
 
 
-
-## BUGS
-
-It may be buggy. I've just coded it for fast fun with https://autodarts.io. You can give me feedback in Discord > wusaaa
-
-
-## TODOs
-
-### Done
-
-- Init project
-- Add retry for generation
-
-
 ## LAST WORDS
 
 Thanks to Timo for awesome https://autodarts.io. It will be huge!
