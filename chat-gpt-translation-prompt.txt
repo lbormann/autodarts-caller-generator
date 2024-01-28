@@ -1,0 +1,10 @@
+Kannst Du mir bitte für alle Zeilen, jeweils den ersten Wert vor dem ";" ins TODOSPRACHE übersetzen? 
+Es ist wirklich sehr wichtig, dass jede Zeile aus der Liste in der Ausgabe entsprechend an der selben Position ist und insgesamt keine Zeilen vergessen werden.
+Außerdem sollen alle Zeichen nach dem ersten ";" nicht übersetzt werden, sondern in ihrer Ursprungsform erhalten und genauso in der Ausgabe aufgeführt werden. 
+Darüberhinaus gilt die Regel, bei Zeilen, die mit ;; abschließen, soll keine Übersetzung gemacht werden, sondern der Ursprungswert erhalten bleiben in der Ausgabe.
+Als Beispiel: 
+0;; wird in deiner Ausgabe zu 0;;
+Game on!;gameon; wird in deiner Ausgabe zu "Übersetzung Zielsprache";gameon;
+
+
+TODOZEILEN
