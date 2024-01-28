@@ -1,2 +1,3 @@
 - add continuos update
+- add more providers
 - add license
