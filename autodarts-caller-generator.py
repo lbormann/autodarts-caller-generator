@@ -262,11 +262,8 @@ def extract_nested_zip(outer_zip_path, inner_zip_filename, extract_path):
         return extracted_files_count
 def generate(provider, template_file, language_code, voice_name, raw_mode):
     generation_path = GENERATION_PATH
-    use_previous_version = True
     if raw_mode:
         generation_path = GENERATION_RAW_PATH
-    else:
-        use_previous_version = binary_dialog(f"Do you want to generate only new keys (Default: yes): ", default='yes')
 
     os.makedirs(generation_path, exist_ok=True)
     if os.access(generation_path, os.W_OK) == False:
@@ -306,11 +303,14 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
             raise FileNotFoundError(f"{generation_path} is not writeable")
 
         # grab existing files of current/previous version and put it in new version`s folder
-        current_files_count = 0
-        if use_previous_version and version_counter > 1:
+        generation_start_index = 0
+        use_previous_version = False
+        if version_counter > 1:
+            use_previous_version = binary_dialog(f"Do you want to generate only new keys (Default: yes): ", default='yes')
+        if use_previous_version :
             inner_zip = os.path.basename(current_version_full_path)
-            current_files_count = extract_nested_zip(current_version_full_path, inner_zip, generation_path)
-            print(f"Copied {current_files_count} files from previous version: {current_version_full_path}")
+            generation_start_index = extract_nested_zip(current_version_full_path, inner_zip, generation_path)
+            print(f"Copied {generation_start_index} files from previous version: {current_version_full_path}")
                
             directory, ext = os.path.splitext(inner_zip)
             
@@ -341,9 +341,9 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
 
     errors = 0
     if provider == 'amazon':
-        errors = generate_amazon(keys, generation_path, language_code, voice_name, raw_mode, current_files_count)
+        errors = generate_amazon(keys, generation_path, language_code, voice_name, raw_mode, generation_start_index)
     elif provider == 'google':
-        errors = generate_google(keys, generation_path, language_code, voice_name, raw_mode, current_files_count)
+        errors = generate_google(keys, generation_path, language_code, voice_name, raw_mode, generation_start_index)
 
     if not raw_mode:
         # Erstellen Sie die ZIP-Datei
