@@ -311,6 +311,7 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
             inner_zip = os.path.basename(current_version_full_path)
             generation_start_index = extract_nested_zip(current_version_full_path, inner_zip, generation_path)
             print(f"Copied {generation_start_index} files from previous version: {current_version_full_path}")
+            generation_start_index = generation_start_index - 1
                
             directory, ext = os.path.splitext(inner_zip)
             
@@ -369,8 +370,8 @@ def generate_amazon(keys, generation_path, language_code, language_name, raw_mod
     client = session.client("polly")
 
     errors = 0
-    print(f"Generating {len(keys[index-1:])} sounds:")
-    for key_index, key in enumerate(keys[index-1:], start=index):
+    print(f"Generating {len(keys[index:])} sounds:")
+    for key_index, key in enumerate(keys[index:], start=index):
         print(f"{key_index}) {key}")
 
         tries = 1
@@ -430,8 +431,8 @@ def generate_google(keys, generation_path, language_code, language_name, raw_mod
     )
 
     errors = 0
-    print(f"Generating {len(keys[index-1:])} sounds:")
-    for key_index, key in enumerate(keys[index-1:], start=index):
+    print(f"Generating {len(keys[index:])} sounds:")
+    for key_index, key in enumerate(keys[index:], start=index):
         print(f"{key_index}) {key}")
 
         tries = 1
