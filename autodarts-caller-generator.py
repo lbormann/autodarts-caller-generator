@@ -475,7 +475,6 @@ def generate_google(keys, generation_path, language_code, language_name, raw_mod
 
 
 if __name__ == "__main__":
-
     ap = argparse.ArgumentParser()
     
     ap.add_argument("-TP", "--templates_path", required=True, help="Absolute path to your templates")
@@ -498,7 +497,9 @@ if __name__ == "__main__":
     print('##########################################', '')
     print('       WELCOME TO AUTODARTS-CALLER-GENERATOR', '')
     print('##########################################', '')
+    print('VERSION: ', VERSION, '')
     print('RUNNING OS: ' + osType + ' | ' + osName + ' | ' + osRelease, '')
+    print('DONATION: bitcoin:bc1q8dcva098rrrq2uqhv38rj5hayzrqywhudvrmxa', '')
     print('\r\n', '')
 
 
@@ -507,8 +508,8 @@ if __name__ == "__main__":
     # 1) Which template would you like to work with?
     # 2) Should it be generated in 'raw' mode? (raw = yes => not structured for autodarts-caller usage)
     # 3) Which voice would you like to use? -> Display of available voices for the selected language (The language is interpreted from the template name)
-    # 5) Confirm and start the generation
-    # 6) Repeat from step 3)
+    # 4) Confirm and start the generation
+    # 5) Repeat from step 3)
 
 
     # 0)
@@ -523,12 +524,12 @@ if __name__ == "__main__":
 
     voices = list_voice_names(provider, language_code)
 
-    # 6)
+    # 5)
     while 1:
         # 3)
         voice_name = choose_voice_name(provider, voices)
 
-        # 5)
+        # 4)
         confirm = binary_dialog(f"Are you sure you want to proceed (yes/no)? You may face some bill by {provider} (Default: yes): ", default='yes')
         if confirm:
             generate(provider, template_file, language_code, voice_name, raw_mode)
