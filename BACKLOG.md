@@ -1,3 +1,3 @@
-- add continuos update
+- hint in available provider voice about previous generation count
 - add more providers
 - add license

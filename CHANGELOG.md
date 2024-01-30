@@ -1,4 +1,9 @@
-## 1.0.8
+## 1.0.3
+
+- support continuos generation by using previous versions
+
+
+## 1.0.2
 
 - add CHANGELOG
 - add BACKLOG

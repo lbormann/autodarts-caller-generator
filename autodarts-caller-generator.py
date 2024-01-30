@@ -11,6 +11,7 @@ import logging
 from google.cloud import texttospeech
 from boto3 import Session
 from contextlib import closing
+import zipfile
 
 plat = platform.system()
 
@@ -24,7 +25,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.0.2'
+VERSION = '1.0.3'
 
 DEFAULT_MAX_RETRIES = 3
 
@@ -76,6 +77,19 @@ def setup_environment_google():
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path_to_credential_file
 
 
+def int_dialog(question, default = 0):
+    while True:
+        try:
+            user_input = input(question)
+            if user_input == '':
+                user_input = default
+            user_input = int(user_input)
+            if user_input >= 0:
+                return user_input
+            else:
+                raise ValueError
+        except ValueError:
+            print("Invalid input. Please enter a valid integer >= 0")
 def binary_dialog(question, default = 'no'):
     while True:
         user_input = input(question).lower()
@@ -218,7 +232,35 @@ def restructure_generated_files(generation_path):
     # Löscht den Ursprungsordner
     shutil.rmtree(generation_path)
 
-def generate(provider, template_file, language_code, voice_name, raw_mode):
+
+def extract_nested_zip(outer_zip_path, inner_zip_filename, extract_path):
+    # Öffne die äußere Zip-Datei
+    with zipfile.ZipFile(outer_zip_path, 'r') as outer_zip:
+        # Extrahiere die innere Zip-Datei
+        inner_zip_data = outer_zip.read(inner_zip_filename)
+        
+        # Erstelle eine temporäre Datei für die innere Zip-Datei
+        temp_inner_zip_path = os.path.join(extract_path, 'temp_inner.zip')
+        with open(temp_inner_zip_path, 'wb') as temp_inner_zip:
+            temp_inner_zip.write(inner_zip_data)
+        
+        # Öffne die innere Zip-Datei
+        with zipfile.ZipFile(temp_inner_zip_path, 'r') as inner_zip:
+            # Finde den Namen des inneren Ordners
+            inner_folder_name = inner_zip.namelist()[0].split('/')[0]
+            
+            # Extrahiere nur die Dateien aus dem inneren Ordner in das Zielverzeichnis
+            extracted_files_count = 0
+            for inner_file in inner_zip.namelist():
+                if inner_file.startswith(inner_folder_name + '/'):
+                    print("copy previous: " + inner_file)
+                    inner_zip.extract(inner_file, extract_path)
+                    extracted_files_count += 1
+
+        # Lösche die temporäre innere Zip-Datei
+        os.remove(temp_inner_zip_path)
+        return extracted_files_count
+def generate(provider, template_file, language_code, voice_name, raw_mode, use_previous_version):
     generation_path = GENERATION_PATH
     if raw_mode:
         generation_path = GENERATION_RAW_PATH
@@ -241,6 +283,8 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
             if not os.path.exists(version):
                 generation_path_main = f"{generation_path_main}-v{version_counter}"
                 break
+            else:
+                current_version_full_path = version
             
     os.makedirs(generation_path_main, exist_ok=True)
     if os.access(generation_path_main, os.W_OK) == False:
@@ -258,6 +302,34 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
         if os.access(generation_path, os.W_OK) == False:
             raise FileNotFoundError(f"{generation_path} is not writeable")
 
+        # grab existing files of current/previous version and put it in new version`s folder
+        current_files_count = 0
+        if use_previous_version and version_counter > 1:
+            inner_zip = os.path.basename(current_version_full_path)
+            current_files_count = extract_nested_zip(current_version_full_path, inner_zip, generation_path)
+            print(f"Copied {current_files_count} files from previous version: {current_version_full_path}")
+               
+            directory, ext = os.path.splitext(inner_zip)
+            
+            # Define the path of the current directory
+            current_directory = os.path.join(generation_path, directory)
+
+            # Define the path of the parent directory
+            parent_directory = os.path.dirname(current_directory)
+
+            # Iterate through the current directory and move all files to the parent directory
+            for file in os.listdir(current_directory):
+                file_path = os.path.join(current_directory, file)
+                if os.path.isfile(file_path):
+                    print("move previous: " + file)
+                    destination_path = os.path.join(parent_directory, file)
+                    shutil.move(file_path, destination_path)
+            
+            # Remove parent directory
+            os.rmdir(current_directory)
+            # shutil.rmtree(parent_directory)
+
+
 
     keys = read_generation_keys(template_file)
 
@@ -266,9 +338,9 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
 
     errors = 0
     if provider == 'amazon':
-        errors = generate_amazon(keys, generation_path, language_code, voice_name, raw_mode)
+        errors = generate_amazon(keys, generation_path, language_code, voice_name, raw_mode, current_files_count)
     elif provider == 'google':
-        errors = generate_google(keys, generation_path, language_code, voice_name, raw_mode)
+        errors = generate_google(keys, generation_path, language_code, voice_name, raw_mode, current_files_count)
 
     if not raw_mode:
         # Erstellen Sie die ZIP-Datei
@@ -287,15 +359,15 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
         restructure_generated_files(generation_path_main)
 
     print(f"Generation finished with {errors} errors")
-def generate_amazon(keys, generation_path, language_code, language_name, raw_mode):
+def generate_amazon(keys, generation_path, language_code, language_name, raw_mode, index):
     # Create a client using the credentials and region defined in the [default] section of the AWS credentials file (~/.aws/credentials).
     # profile_name="autodart-caller"
     session = Session()
     client = session.client("polly")
 
     errors = 0
-    print(f"Generating {len(keys)} sounds:")
-    for key_index, key in enumerate(keys):
+    print(f"Generating {len(keys[index-1:])} sounds:")
+    for key_index, key in enumerate(keys[index-1:], start=index):
         print(f"{key_index}) {key}")
 
         tries = 1
@@ -333,7 +405,7 @@ def generate_amazon(keys, generation_path, language_code, language_name, raw_mod
                 if tries > MAX_RETRIES:
                     errors += 1            
     return errors   
-def generate_google(keys, generation_path, language_code, language_name, raw_mode):
+def generate_google(keys, generation_path, language_code, language_name, raw_mode, index):
     # Instantiates a client
     client = texttospeech.TextToSpeechClient()
 
@@ -355,8 +427,8 @@ def generate_google(keys, generation_path, language_code, language_name, raw_mod
     )
 
     errors = 0
-    print(f"Generating {len(keys)} sounds:")
-    for key_index, key in enumerate(keys):
+    print(f"Generating {len(keys[index-1:])} sounds:")
+    for key_index, key in enumerate(keys[index-1:], start=index):
         print(f"{key_index}) {key}")
 
         tries = 1
@@ -427,12 +499,13 @@ if __name__ == "__main__":
 
 
     # Procedure:
-    # 0) Which cloud provider would you like to use?
+    # 0) Which provider would you like to use?
     # 1) Which template would you like to work with?
-    # 2) Should it be generated in 'raw' mode? (Should the sounds for the caller be structured?)
-    # 3) Which voice would you like to use? -> Display of availble voices for the selected language (The language is interpreted from the template name)
-    # 4) Confirm and start the generation
-    # 5) Repeat from step 3)
+    # 2) Should it be generated in 'raw' mode? (raw = yes => not structured for autodarts-caller usage)
+    # 3) Which voice would you like to use? -> Display of available voices for the selected language (The language is interpreted from the template name)
+    # 4) Use previous files to prevent double generation?
+    # 5) Confirm and start the generation
+    # 6) Repeat from step 3)
 
 
     # 0)
@@ -445,18 +518,21 @@ if __name__ == "__main__":
     # 2) 
     raw_mode = binary_dialog("Do you want to generate in raw mode (Default: no)?: ")
 
-    # 3) 
     voices = list_voice_names(provider, language_code)
 
-    # 5)
+    # 6)
     while 1:
         # 3)
         voice_name = choose_voice_name(provider, voices)
 
         # 4)
-        confirm = binary_dialog(f"Are you sure you want to proceed (yes/no)? You may face some bill by {provider} (Default: no): ")
+        if not raw_mode:
+            use_previous_version = binary_dialog(f"Do you want to generate only new keys (Default: yes): ", default='yes')
+
+        # 5)
+        confirm = binary_dialog(f"Are you sure you want to proceed (yes/no)? You may face some bill by {provider} (Default: yes): ", default='yes')
         if confirm:
-            generate(provider, template_file, language_code, voice_name, raw_mode)
+            generate(provider, template_file, language_code, voice_name, raw_mode, use_previous_version)
 
                 
 
