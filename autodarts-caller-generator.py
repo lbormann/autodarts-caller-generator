@@ -260,10 +260,13 @@ def extract_nested_zip(outer_zip_path, inner_zip_filename, extract_path):
         # Lösche die temporäre innere Zip-Datei
         os.remove(temp_inner_zip_path)
         return extracted_files_count
-def generate(provider, template_file, language_code, voice_name, raw_mode, use_previous_version):
+def generate(provider, template_file, language_code, voice_name, raw_mode):
     generation_path = GENERATION_PATH
+    use_previous_version = True
     if raw_mode:
         generation_path = GENERATION_RAW_PATH
+    else:
+        use_previous_version = binary_dialog(f"Do you want to generate only new keys (Default: yes): ", default='yes')
 
     os.makedirs(generation_path, exist_ok=True)
     if os.access(generation_path, os.W_OK) == False:
@@ -503,7 +506,6 @@ if __name__ == "__main__":
     # 1) Which template would you like to work with?
     # 2) Should it be generated in 'raw' mode? (raw = yes => not structured for autodarts-caller usage)
     # 3) Which voice would you like to use? -> Display of available voices for the selected language (The language is interpreted from the template name)
-    # 4) Use previous files to prevent double generation?
     # 5) Confirm and start the generation
     # 6) Repeat from step 3)
 
@@ -525,14 +527,10 @@ if __name__ == "__main__":
         # 3)
         voice_name = choose_voice_name(provider, voices)
 
-        # 4)
-        if not raw_mode:
-            use_previous_version = binary_dialog(f"Do you want to generate only new keys (Default: yes): ", default='yes')
-
         # 5)
         confirm = binary_dialog(f"Are you sure you want to proceed (yes/no)? You may face some bill by {provider} (Default: yes): ", default='yes')
         if confirm:
-            generate(provider, template_file, language_code, voice_name, raw_mode, use_previous_version)
+            generate(provider, template_file, language_code, voice_name, raw_mode)
 
                 
 
