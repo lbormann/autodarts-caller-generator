@@ -1,3 +1,8 @@
+## 1.0.4
+
+- fix voice-pack extending for version '1'
+
+
 ## 1.0.3
 
 - support continuos generation by using previous versions

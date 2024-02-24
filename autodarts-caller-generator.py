@@ -25,7 +25,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.0.3'
+VERSION = '1.0.4'
 
 DEFAULT_MAX_RETRIES = 3
 
@@ -276,6 +276,7 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
     generation_path_main = os.path.join(generation_path, voice_name_path)
 
     version_counter = 1
+    current_version_full_path = f"{generation_path_main}.{OUTPUT_ARCHIVE_EXTENSION}"
     if os.path.exists(f"{generation_path_main}.{OUTPUT_ARCHIVE_EXTENSION}"):     
         while 1: 
             version_counter += 1
@@ -307,7 +308,7 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
         use_previous_version = False
         if version_counter > 1:
             use_previous_version = binary_dialog(f"Do you want to generate only new keys (Default: yes): ", default='yes')
-        if use_previous_version :
+        if use_previous_version:
             inner_zip = os.path.basename(current_version_full_path)
             generation_start_index = extract_nested_zip(current_version_full_path, inner_zip, generation_path)
             print(f"Copied {generation_start_index} files from previous version: {current_version_full_path}")
