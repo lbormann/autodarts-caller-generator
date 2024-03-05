@@ -31,6 +31,7 @@ DEFAULT_MAX_RETRIES = 3
 
 TEMPLATE_FILE_EXTENSION = '.csv'
 TEMPLATE_FILE_ENCODING = 'utf-8-sig'
+# OUTPUT_FILE_EXTENSION = '.ogg'
 OUTPUT_FILE_EXTENSION = '.mp3'
 OUTPUT_ARCHIVE_EXTENSION = 'zip'
 SERVICE_PROVIDERS = ['google', 'amazon']
@@ -260,7 +261,7 @@ def extract_nested_zip(outer_zip_path, inner_zip_filename, extract_path):
         # Lösche die temporäre innere Zip-Datei
         os.remove(temp_inner_zip_path)
         return extracted_files_count
-def generate(provider, template_file, language_code, voice_name, raw_mode):
+def generate(provider, template_file, language_code, voice_name, raw_mode, only_new_keys = True):
     generation_path = GENERATION_PATH
     if raw_mode:
         generation_path = GENERATION_RAW_PATH
@@ -292,6 +293,7 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
         raise FileNotFoundError(f"{generation_path_main} is not writeable")
 
     generation_path = generation_path_main
+    generation_start_index = 0
     if not raw_mode:
         # add template-file to generation-path
         template_file = shutil.copy(template_file, generation_path_main)
@@ -304,10 +306,12 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
             raise FileNotFoundError(f"{generation_path} is not writeable")
 
         # grab existing files of current/previous version and put it in new version`s folder
-        generation_start_index = 0
         use_previous_version = False
         if version_counter > 1:
-            use_previous_version = binary_dialog(f"Do you want to generate only new keys (Default: yes): ", default='yes')
+            if only_new_keys:
+                use_previous_version = True
+            else:
+                use_previous_version = binary_dialog(f"Do you want to generate only new keys (Default: yes): ", default='yes')
         if use_previous_version:
             inner_zip = os.path.basename(current_version_full_path)
             generation_start_index = extract_nested_zip(current_version_full_path, inner_zip, generation_path)
@@ -364,6 +368,7 @@ def generate(provider, template_file, language_code, voice_name, raw_mode):
         restructure_generated_files(generation_path_main)
 
     print(f"Generation finished with {errors} errors")
+    return errors
 def generate_amazon(keys, generation_path, language_code, language_name, raw_mode, index):
     # Create a client using the credentials and region defined in the [default] section of the AWS credentials file (~/.aws/credentials).
     # profile_name="autodart-caller"
@@ -430,6 +435,17 @@ def generate_google(keys, generation_path, language_code, language_name, raw_mod
         # https://cloud.google.com/text-to-speech/docs/audio-profiles?hl=de
         effects_profile_id=["large-home-entertainment-class-device"],
     )
+
+
+    # # Select the type of audio file you want returned
+    # audio_config = texttospeech.AudioConfig(
+    #     # audio_encoding=texttospeech.AudioEncoding.MP3,
+    #     audio_encoding=texttospeech.AudioEncoding.OGG_OPUS,
+    #     # audio_encoding=texttospeech.AudioEncoding.LINEAR16,
+    #     # sample_rate_hertz=44100,
+    #     # https://cloud.google.com/text-to-speech/docs/audio-profiles?hl=de
+    #     # effects_profile_id=["large-home-entertainment-class-device"],
+    # )
 
     errors = 0
     print(f"Generating {len(keys[index:])} sounds:")
@@ -524,16 +540,27 @@ if __name__ == "__main__":
     raw_mode = binary_dialog("Do you want to generate in raw mode (Default: no)?: ")
 
     voices = list_voice_names(provider, language_code)
+    all_voices = binary_dialog("Do you want to generate for all available voices (Default: yes)?: ", default='yes')
 
     # 5)
     while 1:
-        # 3)
-        voice_name = choose_voice_name(provider, voices)
+        if all_voices:
+            voices_left = voices.copy()
+            errors = 0
+            while voices_left and errors == 0:
+                voice_name = voices_left.pop(0) 
+                errors = generate(provider, template_file, language_code, voice_name, raw_mode)
+                if errors != 0:
+                    print(f"ERROR occured for: {voice_name}")
+            all_voices = False
+        else:
+            # 3)
+            voice_name = choose_voice_name(provider, voices)
 
-        # 4)
-        confirm = binary_dialog(f"Are you sure you want to proceed (yes/no)? You may face some bill by {provider} (Default: yes): ", default='yes')
-        if confirm:
-            generate(provider, template_file, language_code, voice_name, raw_mode)
+            # 4)
+            confirm = binary_dialog(f"Are you sure you want to proceed (yes/no)? You may face some bill by {provider} (Default: yes): ", default='yes')
+            if confirm:
+                generate(provider, template_file, language_code, voice_name, raw_mode, only_new_keys=False)
 
                 
 

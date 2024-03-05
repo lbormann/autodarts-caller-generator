@@ -1,3 +1,9 @@
+## 1.1.0
+
+- automate generation for all available speaker
+- fix bug on raw-mode
+
+
 ## 1.0.4
 
 - fix voice-pack extending for version '1'
