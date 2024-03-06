@@ -102,9 +102,3 @@ You need to set an absolute path to your generation-raw-directory. Moreover make
 
 Defines maximum count of retries for an entry.
 
-
-
-## LAST WORDS
-
-Thanks to Timo for awesome https://autodarts.io. It will be huge!
-
