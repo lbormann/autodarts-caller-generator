@@ -1,3 +1,8 @@
+## 1.1.1
+
+- fix provider offers no voices for language
+
+
 ## 1.1.0
 
 - automate generation for all available speaker

@@ -25,7 +25,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.1.0'
+VERSION = '1.1.1'
 
 DEFAULT_MAX_RETRIES = 3
 
@@ -528,19 +528,24 @@ if __name__ == "__main__":
     # 4) Confirm and start the generation
     # 5) Repeat from step 3)
 
+    voices = []
+    while len(voices) == 0:
+        # 0)
+        provider = setup_environment()
 
-    # 0)
-    provider = setup_environment()
+        # 1)
+        template_file = choose_template_file() 
+        language_code = extract_language_code(template_file)
 
-    # 1)
-    template_file = choose_template_file() 
-    language_code = extract_language_code(template_file)
+        # 2) 
+        raw_mode = binary_dialog("Do you want to generate in raw mode (Default: no)?: ")
 
-    # 2) 
-    raw_mode = binary_dialog("Do you want to generate in raw mode (Default: no)?: ")
+        voices = list_voice_names(provider, language_code)
 
-    voices = list_voice_names(provider, language_code)
-    all_voices = binary_dialog("Do you want to generate for all available voices (Default: yes)?: ", default='yes')
+        if len(voices) > 0:
+            all_voices = binary_dialog("Do you want to generate for all available voices (Default: yes)?: ", default='yes')
+        else:
+            print(f"No available voices for: {provider} - {language_code}")
 
     # 5)
     while 1:
