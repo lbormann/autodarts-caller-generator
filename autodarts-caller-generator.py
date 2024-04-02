@@ -12,6 +12,8 @@ from google.cloud import texttospeech
 from boto3 import Session
 from contextlib import closing
 import zipfile
+import unicodedata
+
 
 plat = platform.system()
 
@@ -25,7 +27,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.1.1'
+VERSION = '1.1.2'
 
 DEFAULT_MAX_RETRIES = 3
 
@@ -78,6 +80,9 @@ def setup_environment_google():
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path_to_credential_file
 
 
+def remove_accents(input_str):
+    nfkd_form = unicodedata.normalize('NFKD', input_str)
+    return ''.join([c for c in nfkd_form if not unicodedata.combining(c)])
 def int_dialog(question, default = 0):
     while True:
         try:
@@ -167,7 +172,7 @@ def list_amazon_voice_names(language_code):
     
     results = []  
     for voice in voices['Voices']:
-        voice_entry = voice['Name'] + "-" + voice['Gender']
+        voice_entry = remove_accents(voice['Name']) + "-" + voice['Gender']
         results.append(voice_entry)
     return results
 def list_google_voice_names(language_code):
@@ -179,7 +184,7 @@ def list_google_voice_names(language_code):
     results = []  
     for voice in voices.voices:
 
-        voice_entry = voice.name 
+        voice_entry = remove_accents(voice.name)
 
         # Display the supported language codes for this voice. Example: "en-US"
         # for language_code in voice.language_codes:

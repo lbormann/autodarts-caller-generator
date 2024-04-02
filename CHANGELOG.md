@@ -1,3 +1,8 @@
+## 1.1.2
+
+- remove accents
+
+
 ## 1.1.1
 
 - fix provider offers no voices for language
