@@ -1,4 +1,4 @@
-## 1.2.5
+## 1.2.6
 - openai
     -add possibility to give AI instructions
     -add possibility to set new API Key

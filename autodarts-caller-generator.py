@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.2.5'
+VERSION = '1.2.6'
 
 DEFAULT_MAX_RETRIES = 3
 
@@ -78,7 +78,7 @@ def setup_environment_openai():
     else: 
         print("OpenAI API key already set in environment variables.")
         change_key = binary_dialog("Do you want to change it? (yes/no): ", default='no')
-        if change_key == 'yes':
+        if change_key:
             print("Please enter your OpenAI API key: ")
             openai_api_key = input()
             if openai_api_key == None or openai_api_key == '':
