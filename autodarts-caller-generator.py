@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.2.2'
+VERSION = '1.2.3'
 
 DEFAULT_MAX_RETRIES = 3
 
