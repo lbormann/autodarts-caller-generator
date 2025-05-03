@@ -9,6 +9,7 @@ import re
 import codecs
 import logging
 from google.cloud import texttospeech
+from openai import OpenAI
 from boto3 import Session
 from contextlib import closing
 import zipfile
@@ -16,7 +17,6 @@ import unicodedata
 
 
 plat = platform.system()
-
 sh = logging.StreamHandler()
 sh.setLevel(logging.INFO)
 formatter = logging.Formatter('%(message)s')
@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.1.2'
+VERSION = '1.2.0'
 
 DEFAULT_MAX_RETRIES = 3
 
@@ -36,8 +36,19 @@ TEMPLATE_FILE_ENCODING = 'utf-8-sig'
 # OUTPUT_FILE_EXTENSION = '.ogg'
 OUTPUT_FILE_EXTENSION = '.mp3'
 OUTPUT_ARCHIVE_EXTENSION = 'zip'
-SERVICE_PROVIDERS = ['google', 'amazon']
-
+SERVICE_PROVIDERS = ['google', 'amazon', 'openai']
+OPENAIVOICES = ["alloy","ash","ballad","coral","echo","fable","nova","onyx","sage","shimmer","verse"]
+OPENAIVOICESGENDER = {"alloy": "FEMALE",
+                      "ash": "MALE",
+                      "ballad": "MALE",
+                      "coral": "FEMALE",
+                      "echo": "MALE",
+                      "fable": "MALE",
+                      "nova": "FEMALE",
+                      "onyx": "MALE",
+                      "sage": "FEMALE",
+                      "shimmer": "FEMALE",
+                      "verse": "MALE"}
 
 
 
@@ -47,7 +58,24 @@ def setup_environment():
         setup_environment_amazon()
     elif service == 'google':
         setup_environment_google()
+    elif service == 'openai':
+        setup_environment_openai()
     return service
+def setup_environment_openai():
+    global openai_api_key
+    if not os.environ.get("OPENAI_APPLICATION_CREDENTIALS"):
+        print("Please enter your OpenAI API key: ")
+        openai_api_key = input()
+        if not openai_api_key:
+            raise ValueError("API key cannot be empty. Please try again.")
+        else:
+            if platform.system() == "Windows":
+                os.system(f'setx OPENAI_APPLICATION_CREDENTIALS "{openai_api_key}"')
+                os.environ["OPENAI_APPLICATION_CREDENTIALS"] = openai_api_key
+            else:
+                os.system(f'export OPENAI_APPLICATION_CREDENTIALS={openai_api_key}')
+                os.environ["OPENAI_APPLICATION_CREDENTIALS"] = openai_api_key
+
 def setup_environment_amazon():
     user_home = os.environ.get('USERPROFILE') or os.environ.get('HOME')
     credential_path = os.path.join(user_home, '.aws', 'credentials')
@@ -157,6 +185,8 @@ def list_voice_names(provider, language_code):
         return list_amazon_voice_names(language_code)
     elif provider == 'google':
         return list_google_voice_names(language_code)
+    elif provider == 'openai':
+        return list_openai_voice_names(language_code)
 def list_amazon_voice_names(language_code):   
     # Create a client using the credentials and region defined in the [autodarts-caller] section of the AWS credentials file (~/.aws/credentials).
     # profile_name="autodarts-caller"
@@ -197,6 +227,29 @@ def list_google_voice_names(language_code):
         voice_entry += "-" + ssml_gender.name
 
         results.append(voice_entry)
+    return results
+def list_openai_voice_names(language_code):
+        
+    results = []
+    results = OPENAIVOICES
+    # # Ausgabe der verfügbaren Stimmen mit Keynummern
+    # print("Available OpenAI Voices:")
+    # for key, value in openaiVoice.items():
+    #     print(f"{key}: {value}")
+
+    # # Nutzeraufforderung zur Eingabe einer Keynummer
+    # while True:
+    #     try:
+    #         key_number = int(input("Please enter a voice name number: "))
+    #         if key_number in openaiVoice:
+    #             voices = openaiVoice[key_number]
+    #             print(f"You selected: {voices}")
+    #             results = voices
+    #             return results
+    #         else:
+    #             print("Invalid number. Please try again.")
+    #     except ValueError:
+    #         print("Invalid input. Please enter a valid number.")
     return results
 def choose_voice_name(provider, voices):
     return display_menu(f"Select a {provider}-voice to use: ", voices)
@@ -275,6 +328,8 @@ def generate(provider, template_file, language_code, voice_name, raw_mode, only_
     if os.access(generation_path, os.W_OK) == False:
         raise FileNotFoundError(f"{generation_path} is not writeable")
 
+    if voice_name in OPENAIVOICESGENDER:
+        voice_name = voice_name + "-" + OPENAIVOICESGENDER[voice_name]
     voice_name_path = voice_name
     if not voice_name.lower().startswith(language_code.lower()):
         voice_name_path = language_code + '-' + voice_name
@@ -348,14 +403,17 @@ def generate(provider, template_file, language_code, voice_name, raw_mode, only_
     keys = read_generation_keys(template_file)
 
     # Remove gender-suffix
-    voice_name = voice_name.rpartition("-")[0]
+    if "-" in voice_name:
+        voice_name = voice_name.rpartition("-")[0]
 
     errors = 0
     if provider == 'amazon':
         errors = generate_amazon(keys, generation_path, language_code, voice_name, raw_mode, generation_start_index)
     elif provider == 'google':
         errors = generate_google(keys, generation_path, language_code, voice_name, raw_mode, generation_start_index)
-
+    elif provider == 'openai':
+        errors = generate_openai(keys, generation_path, language_code, voice_name, raw_mode, generation_start_index)
+       
     if not raw_mode:
         # Erstellen Sie die ZIP-Datei
         # Der Name des zu erstellenden Archivs (ohne .zip Erweiterung)
@@ -490,8 +548,61 @@ def generate_google(keys, generation_path, language_code, language_name, raw_mod
                 if tries > MAX_RETRIES:
                     errors += 1    
     return errors
+def generate_openai(keys, generation_path, language_code, language_name, raw_mode, index):
+    global openai_api_key
+    # Instantiates a client
+    client = OpenAI(
+        api_key=str(openai_api_key),
+    )
+
+    errors = 0
+    print(f"Generating {len(keys[index:])} sounds:")
+    for key_index, key in enumerate(keys[index:], start=index):
+        key = key.replace("!", "")
+        print(f"{key_index}) {key}")
+
+        tries = 1
+        success = False
+        while not success and tries <= MAX_RETRIES:
+            tries += 1
+            try:
+                # Set the text input to be synthesized
+                synthesis_input = key
 
 
+                file_output = f"{key}{OUTPUT_FILE_EXTENSION}"
+                if not raw_mode:
+                    # BL-00001_0_48k_stereo.mp3
+                    file_output = f"GO-{str(key_index).zfill(5)}_{key_index}_mono{OUTPUT_FILE_EXTENSION}"
+
+                output_file_path = os.path.join(generation_path, file_output)
+
+                # # The response's audio_content is binary.
+                # with open(output_file_path, "wb") as out:
+                #     # Write the response to the output file.
+                #     out.write(response.stream_to_file(output_file_path))
+                
+                with client.audio.speech.with_streaming_response.create(
+                    model="gpt-4o-mini-tts",
+                    voice=str(language_name),
+                    input=str(synthesis_input),
+                    instructions="Speak in language "+str(language_code)+" and call with much emotions like you feaver with a game.",
+                ) as response:
+                    response.stream_to_file(output_file_path)
+                success = True
+            except Exception as e:
+                print(str(e))
+                if tries > MAX_RETRIES:
+                    errors += 1    
+    return errors
+    # Build the voice request, select the language code ("en-US") and the
+    # with client.audio.speech.with_streaming_response.create(
+    #     model="gpt-4o-mini-tts",
+    #     voice="coral",
+    #     input="Today is a wonderful day to build something people love!",
+    #     instructions="Speak in a cheerful and positive tone.",
+    # ) as response:
+    #     response.stream_to_file(speech_file_path)
 
 
 
@@ -515,6 +626,7 @@ if __name__ == "__main__":
     osType = plat
     osName = os.name
     osRelease = platform.release()
+    openai_api_key = None
     print('\r\n', '')
     print('##########################################', '')
     print('       WELCOME TO AUTODARTS-CALLER-GENERATOR', '')

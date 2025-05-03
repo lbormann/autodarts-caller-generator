@@ -1,3 +1,7 @@
+## 1.2.0
+
+- implement openai
+
 ## 1.1.2
 
 - remove accents
