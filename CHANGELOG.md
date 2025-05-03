@@ -1,3 +1,8 @@
+## 1.2.5
+- openai
+    -add possibility to give AI instructions
+    -add possibility to set new API Key
+
 ## 1.2.4
 
 - implement openai

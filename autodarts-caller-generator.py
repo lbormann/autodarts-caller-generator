@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.2.4'
+VERSION = '1.2.5'
 
 DEFAULT_MAX_RETRIES = 3
 
@@ -77,6 +77,19 @@ def setup_environment_openai():
                 os.environ["OPENAI_APPLICATION_CREDENTIALS"] = openai_api_key
     else: 
         print("OpenAI API key already set in environment variables.")
+        change_key = binary_dialog("Do you want to change it? (yes/no): ", default='no')
+        if change_key == 'yes':
+            print("Please enter your OpenAI API key: ")
+            openai_api_key = input()
+            if openai_api_key == None or openai_api_key == '':
+                raise ValueError("API key cannot be empty. Please try again.")
+            else:
+                if platform.system() == "Windows":
+                    os.system(f'setx OPENAI_APPLICATION_CREDENTIALS "{openai_api_key}"')
+                    os.environ["OPENAI_APPLICATION_CREDENTIALS"] = openai_api_key
+                else:
+                    os.system(f'export OPENAI_APPLICATION_CREDENTIALS={openai_api_key}')
+                    os.environ["OPENAI_APPLICATION_CREDENTIALS"] = openai_api_key
         openai_api_key = os.environ.get("OPENAI_APPLICATION_CREDENTIALS")
 
 def setup_environment_amazon():
@@ -232,7 +245,9 @@ def list_google_voice_names(language_code):
         results.append(voice_entry)
     return results
 def list_openai_voice_names(language_code):
-        
+    global openai_instructions
+    print("Do you want to give AI instrctions how it should sound?")
+    openai_instructions = input("Please enter your instructions: ")   
     results = []
     results = OPENAIVOICES
     # # Ausgabe der verfügbaren Stimmen mit Keynummern
@@ -553,6 +568,10 @@ def generate_google(keys, generation_path, language_code, language_name, raw_mod
     return errors
 def generate_openai(keys, generation_path, language_code, language_name, raw_mode, index):
     global openai_api_key
+    global openai_instructions
+    if openai_instructions == None or openai_instructions == '':
+        print("No voice instructions provided. I can't even imagine what will happen now o.O")
+        openai_instructions = "be crazy as possible, you also can switch your mood from word to word!"
     # Instantiates a client
     client = OpenAI(
         api_key=str(openai_api_key),
@@ -589,7 +608,7 @@ def generate_openai(keys, generation_path, language_code, language_name, raw_mod
                     model="gpt-4o-mini-tts",
                     voice=str(language_name),
                     input=str(synthesis_input),
-                    instructions="Speak in language "+str(language_code)+" and call with much emotions like you feaver with a game.",
+                    instructions="Speak in language "+str(language_code)+". and follow the instructions: "+str(openai_instructions),
                 ) as response:
                     response.stream_to_file(output_file_path)
                 success = True
@@ -630,6 +649,7 @@ if __name__ == "__main__":
     osName = os.name
     osRelease = platform.release()
     openai_api_key = None
+    openai_instructions = None
     print('\r\n', '')
     print('##########################################', '')
     print('       WELCOME TO AUTODARTS-CALLER-GENERATOR', '')
