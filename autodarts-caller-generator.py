@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.2.3'
+VERSION = '1.2.4'
 
 DEFAULT_MAX_RETRIES = 3
 
@@ -66,7 +66,7 @@ def setup_environment_openai():
     if not os.environ.get("OPENAI_APPLICATION_CREDENTIALS"):
         print("Please enter your OpenAI API key: ")
         openai_api_key = input()
-        if not openai_api_key:
+        if openai_api_key == None or openai_api_key == '':
             raise ValueError("API key cannot be empty. Please try again.")
         else:
             if platform.system() == "Windows":
@@ -75,6 +75,9 @@ def setup_environment_openai():
             else:
                 os.system(f'export OPENAI_APPLICATION_CREDENTIALS={openai_api_key}')
                 os.environ["OPENAI_APPLICATION_CREDENTIALS"] = openai_api_key
+    else: 
+        print("OpenAI API key already set in environment variables.")
+        openai_api_key = os.environ.get("OPENAI_APPLICATION_CREDENTIALS")
 
 def setup_environment_amazon():
     user_home = os.environ.get('USERPROFILE') or os.environ.get('HOME')
