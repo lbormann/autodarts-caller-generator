@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(sh)
 
 
-VERSION = '1.2.6'
+VERSION = '1.2.7'
 
 DEFAULT_MAX_RETRIES = 3
 
@@ -246,8 +246,8 @@ def list_google_voice_names(language_code):
     return results
 def list_openai_voice_names(language_code):
     global openai_instructions
-    print("Do you want to give AI instrctions how it should sound?")
-    openai_instructions = input("Please enter your instructions: ")   
+    print("Do you want to give AI instrctions how it should sound? Please enter your instructions: ")
+    openai_instructions = input()   
     results = []
     results = OPENAIVOICES
     # # Ausgabe der verfügbaren Stimmen mit Keynummern
@@ -569,7 +569,7 @@ def generate_google(keys, generation_path, language_code, language_name, raw_mod
 def generate_openai(keys, generation_path, language_code, language_name, raw_mode, index):
     global openai_api_key
     global openai_instructions
-    if openai_instructions == None or openai_instructions == '':
+    if openai_instructions == None or openai_instructions == '' or openai_instructions == ' ' or openai_instructions == "":
         print("No voice instructions provided. I can't even imagine what will happen now o.O")
         openai_instructions = "be crazy as possible, you also can switch your mood from word to word!"
     # Instantiates a client
@@ -603,14 +603,23 @@ def generate_openai(keys, generation_path, language_code, language_name, raw_mod
                 # with open(output_file_path, "wb") as out:
                 #     # Write the response to the output file.
                 #     out.write(response.stream_to_file(output_file_path))
+                if language_code == 'de-DE':
+                    with client.audio.speech.with_streaming_response.create(
+                        model="gpt-4o-mini-tts",
+                        voice=str(language_name),
+                        input=str(synthesis_input),
+                        instructions="Sprich in Deutsch, die 0 wird als null ausgesprochen, alles soll so ausgesprochen werden wie es da steht, nichts dazugedichtet, zahlen werden als ganze zahlen ausgesprochen und nicht aufgeteilt in einzelne wie z.B. 111 ist hundertelf nicht eins eins eins und folge den instruktionen: "+str(openai_instructions),
+                    ) as response:
+                        response.stream_to_file(output_file_path)
                 
-                with client.audio.speech.with_streaming_response.create(
-                    model="gpt-4o-mini-tts",
-                    voice=str(language_name),
-                    input=str(synthesis_input),
-                    instructions="Speak in language "+str(language_code)+". and follow the instructions: "+str(openai_instructions),
-                ) as response:
-                    response.stream_to_file(output_file_path)
+                else:
+                    with client.audio.speech.with_streaming_response.create(
+                        model="gpt-4o-mini-tts",
+                        voice=str(language_name),
+                        input=str(synthesis_input),
+                        instructions="Speak in language "+str(language_code)+". and follow the instructions: "+str(openai_instructions),
+                    ) as response:
+                        response.stream_to_file(output_file_path)
                 success = True
             except Exception as e:
                 print(str(e))
