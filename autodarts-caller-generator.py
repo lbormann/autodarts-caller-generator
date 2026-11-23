@@ -14,6 +14,7 @@ from boto3 import Session
 from contextlib import closing
 import zipfile
 import unicodedata
+import time
 
 
 plat = platform.system()
@@ -586,7 +587,6 @@ def generate_openai(keys, generation_path, language_code, language_name, raw_mod
         tries = 1
         success = False
         while not success and tries <= MAX_RETRIES:
-            tries += 1
             try:
                 # Set the text input to be synthesized
                 synthesis_input = key
@@ -604,27 +604,31 @@ def generate_openai(keys, generation_path, language_code, language_name, raw_mod
                 #     # Write the response to the output file.
                 #     out.write(response.stream_to_file(output_file_path))
                 if language_code == 'de-DE':
-                    with client.audio.speech.with_streaming_response.create(
-                        model="gpt-4o-mini-tts",
-                        voice=str(language_name),
-                        input=str(synthesis_input),
-                        instructions="Sprich in Deutsch, die 0 wird als null ausgesprochen, alles soll so ausgesprochen werden wie es da steht, nichts dazugedichtet, zahlen werden als ganze zahlen ausgesprochen und nicht aufgeteilt in einzelne wie z.B. 111 ist hundertelf nicht eins eins eins und folge den instruktionen: "+str(openai_instructions),
-                    ) as response:
-                        response.stream_to_file(output_file_path)
-                
+                    instructions = (
+                        f"Sprich in Deutsch. Die 0 wird als 'null' ausgesprochen. "
+                        f"Alles soll so ausgesprochen werden, wie es da steht. "
+                        f"Zahlen werden als ganze Zahlen ausgesprochen, nicht einzeln. "
+                        f"Folge den Instruktionen: {openai_instructions}"
+                    )
                 else:
-                    with client.audio.speech.with_streaming_response.create(
-                        model="gpt-4o-mini-tts",
-                        voice=str(language_name),
-                        input=str(synthesis_input),
-                        instructions="Speak in language "+str(language_code)+". and follow the instructions: "+str(openai_instructions),
-                    ) as response:
-                        response.stream_to_file(output_file_path)
+                    instructions = (
+                        f"Speak in language {language_code}. Follow the instructions: {openai_instructions}"
+                    )
+
+                with client.audio.speech.with_streaming_response.create(
+                    model="gpt-4o-mini-tts",
+                    voice=str(language_name),
+                    input=str(synthesis_input),
+                    instructions=instructions,
+                ) as response:
+                    response.stream_to_file(output_file_path)
                 success = True
             except Exception as e:
-                print(str(e))
+                print(f"Error for key '{key}': {str(e)}")
+                tries += 1
                 if tries > MAX_RETRIES:
-                    errors += 1    
+                    errors += 1  
+        time.sleep(1)  
     return errors
     # Build the voice request, select the language code ("en-US") and the
     # with client.audio.speech.with_streaming_response.create(
